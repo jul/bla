@@ -1,0 +1,116 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# Licence : see license in package (
+
+"""
+NOM
+
+    bla - Brutal LDAP Administration helper
+
+SYNOPSIS
+
+    bla [local_config]
+
+DESCRIPTION
+
+    Brutal LDAP Admin
+
+    LDAP major PITA in command line is remembering the various options
+    either for searching, or authentication.
+
+    The idea is to potentially use ipython -i bla as a kind of DSL and
+    to have sensitive command line, history.
+
+    Options/environment are stored in dotfile in ~/.bla.json or
+    /etc/bla.json (format are detected according to the extension
+    only yaml and json are supported right now) so people can handle
+    and visualize.
+
+    local_config are values that can be reinterpreted locally
+
+    mail_search = dict(
+          search_base="ou=People,%(search_base)s",
+          search_filter="(uid=*)",
+          attributes=["mail", "cn"],
+          search_scope="LEVEL",
+    )
+
+    global_config are default values for ldap
+    all positional stored in their named versions
+    ex :
+    {
+        "authentication": "SASL",
+        "auto_bind": true,
+        "base": "dc=logilab,dc=fr",
+        "host": "ldap1",
+        "sasl_mechanism": "GSSAPI",
+        "search_base": "dc=logilab,dc=fr",
+        "search_filter": "(objectClass=*)",
+        "uri": "ldap://licorne.tls.logilab.fr"
+    }
+
+    All values in these dict are used as defaults even for
+    arguments that normally do not support them.
+
+    custom ldap operation can be created this way by doing :
+
+    Connection.search_mail = get_default_config(Connection.search, mail_search)
+
+    monkey patching ldap connection to now support mail search with sensible
+    default values that will be substituted dynamically if for instance the
+    global config changes
+
+    ex if CONFIG["search_base"] changes, the search_mail default config will
+    change too.
+
+    load_config/save_config choose the serializer according to file suffix and
+    are pretty printed for convenience.
+
+
+SEE ALSO
+
+    ldapsearch
+
+AUTHOR
+    Logilab <http://logilab.fr>
+    julien.tayon@logilab.fr
+
+
+"""
+from bla import *
+import IPython
+import inspect
+
+if CONFIG.get("debug"):
+    def explore(
+                ldap, base=CONFIG["base"], limit=10,
+                indent=4, see_all=False, first=True
+            ):
+        try:
+            base = base.decode("utf8")
+        except Exception:
+            pass
+        if first:
+            print(base)
+        if not limit:
+            return
+        ldap.search(
+            search_base=base,
+            search_scope=ldap3.LEVEL,
+            search_filter='(objectClass=*)',
+            attributes=['+', '*'])
+        for raw_entry in ldap.entries:
+            new_base = raw_entry.entry_dn
+            pnew_base = str(new_base)[:-len(base)]
+            if raw_entry.hasSubordinates.value in {"True", b'True', True}:
+                print((" " * indent) + pnew_base)
+                explore(ldap, new_base, indent=indent +
+                        4, limit=limit - 1, see_all=see_all, first=False)
+                if len(ldap.entries)>1:
+                    print((" " * indent) + "%-3d results" % len(ldap.entries))
+            else:
+                if see_all:
+                    print((" " * indent) + "- " + pnew_base)
+
+
+IPython.embed(using=False)

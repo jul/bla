@@ -1,0 +1,382 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# Licence : see license in package (
+
+"""
+NOM
+    LHL Ldap Hierarchic Listing
+
+SYNOPSIS
+
+    lhl
+
+DESCRIPTION
+
+    lhl explores an LDAP tree according to your bla config
+    (a file stating how to connect to LDAP)
+
+SEE ALSO
+
+    ldapsearch, bla
+
+AUTHOR
+    Logilab <http://logilab.fr>
+    julien.tayon@logilab.fr
+
+
+"""
+from bla import *
+from pathlib import Path
+from pygments.formatters import HtmlFormatter as alt_formater
+from flask import Flask
+
+print(__doc__)
+
+DOT_PREAMBULE = """
+digraph ldap_map {
+    graph [
+        fontname = "andika"
+        rankdir = "LR"
+        ranksep=.3
+        nodesep=.2
+        splines=multiedge
+        overlap=false
+        bgcolor=lightgrey
+    ];
+
+    node [
+        fontname = "andika"
+    ];
+    %s
+}
+"""
+
+CSS="""
+<style>
+html {
+    background-color:lightgrey;
+}
+body {
+    font-family:'Andika', monospace;
+}
+h1 {
+    background: #336;
+    font-size:150%%;
+    color:white;
+    border-radius:.5em;
+    padding:.5em;
+    border:1px solid black;
+    box-shadow: 5px 5px 2px #ccc;
+}
+.modal {
+    position:fixed;  
+    zindex:10;
+    right:0;
+    top:0;
+    width:45%%;
+    height:100%%;
+    background-color:#eee;
+
+}
+code {
+    background-color:#fee;
+    font-size:130%%;
+}
+.hll { background-color: #ffffcc }
+.c { color: #888888 } /* Comment */
+.err { color: #FF0000; background-color: #FFAAAA } /* Error */
+.k { color: #008800; font-weight: bold } /* Keyword */
+.o { color: #333333 } /* Operator */
+.ch { color: #888888 } /* Comment.Hashbang */
+.cm { color: #888888 } /* Comment.Multiline */
+.cp { color: #557799 } /* Comment.Preproc */
+.cpf { color: #888888 } /* Comment.PreprocFile */
+.c1 { color: #888888 } /* Comment.Single */
+.cs { color: #cc0000; font-weight: bold } /* Comment.Special */
+.gd { color: #A00000 } /* Generic.Deleted */
+.ge { font-style: italic } /* Generic.Emph */
+.gr { color: #FF0000 } /* Generic.Error */
+.gh { color: #000080; font-weight: bold } /* Generic.Heading */
+.gi { color: #00A000 } /* Generic.Inserted */
+.go { color: #888888 } /* Generic.Output */
+.gp { color: #c65d09; font-weight: bold } /* Generic.Prompt */
+.gs { font-weight: bold } /* Generic.Strong */
+.gu { color: #800080; font-weight: bold } /* Generic.Subheading */
+.gt { color: #0044DD } /* Generic.Traceback */
+.kc { color: #008800; font-weight: bold } /* Keyword.Constant */
+.kd { color: #008800; font-weight: bold } /* Keyword.Declaration */
+.kn { color: #008800; font-weight: bold } /* Keyword.Namespace */
+.kp { color: #003388; font-weight: bold } /* Keyword.Pseudo */
+.kr { color: #008800; font-weight: bold } /* Keyword.Reserved */
+.kt { color: #333399; font-weight: bold } /* Keyword.Type */
+.m { color: #6600EE; font-weight: bold } /* Literal.Number */
+.s { background-color: #fff0f0 } /* Literal.String */
+.na { color: #0000CC } /* Name.Attribute */
+.nb { color: #007020 } /* Name.Builtin */
+.nc { color: #BB0066; font-weight: bold } /* Name.Class */
+.no { color: #003366; font-weight: bold } /* Name.Constant */
+.nd { color: #555555; font-weight: bold } /* Name.Decorator */
+.ni { color: #880000; font-weight: bold } /* Name.Entity */
+.ne { color: #FF0000; font-weight: bold } /* Name.Exception */
+.nf { color: #0066BB; font-weight: bold } /* Name.Function */
+.nl { color: #997700; font-weight: bold } /* Name.Label */
+.nn { color: #0e84b5; font-weight: bold } /* Name.Namespace */
+.nt { color: #007700 } /* Name.Tag */
+.nv { color: #996633 } /* Name.Variable */
+.ow { color: #000000; font-weight: bold } /* Operator.Word */
+.w { color: #bbbbbb } /* Text.Whitespace */
+.mb { color: #6600EE; font-weight: bold } /* Literal.Number.Bin */
+.mf { color: #6600EE; font-weight: bold } /* Literal.Number.Float */
+.mh { color: #005588; font-weight: bold } /* Literal.Number.Hex */
+.mi { color: #0000DD; font-weight: bold } /* Literal.Number.Integer */
+.mo { color: #4400EE; font-weight: bold } /* Literal.Number.Oct */
+.sa { background-color: #fff0f0 } /* Literal.String.Affix */
+.sb { background-color: #fff0f0 } /* Literal.String.Backtick */
+.sc { color: #0044DD } /* Literal.String.Char */
+.dl { background-color: #fff0f0 } /* Literal.String.Delimiter */
+.sd { color: #DD4422 } /* Literal.String.Doc */
+.s2 { background-color: #fff0f0 } /* Literal.String.Double */
+.se { color: #666666; font-weight: bold; background-color: #fff0f0 } /* Literal.String.Escape */
+.sh { background-color: #fff0f0 } /* Literal.String.Heredoc */
+.si { background-color: #eeeeee } /* Literal.String.Interpol */
+.sx { color: #DD2200; background-color: #fff0f0 } /* Literal.String.Other */
+.sr { color: #000000; background-color: #fff0ff } /* Literal.String.Regex */
+.s1 { background-color: #fff0f0 } /* Literal.String.Single */
+.ss { color: #AA6600 } /* Literal.String.Symbol */
+.bp { color: #007020 } /* Name.Builtin.Pseudo */
+.fm { color: #0066BB; font-weight: bold } /* Name.Function.Magic */
+.vc { color: #336699 } /* Name.Variable.Class */
+.vg { color: #dd7700; font-weight: bold } /* Name.Variable.Global */
+.vi { color: #3333BB } /* Name.Variable.Instance */
+.vm { color: #996633 } /* Name.Variable.Magic */
+.il { color: #0000DD; font-weight: bold } /* Literal.Number.Integer.Long */
+</style>
+"""
+
+
+
+def graph_svg(cx, first_base=CONFIG["base"]):
+    graph=""
+    total=0
+    seen = set([])
+
+    def explore(ldap_cx, base, limit=1,indent=4, first=True ):
+        nonlocal graph
+        nonlocal total
+        nonlocal seen
+        same = set([])
+        try:
+            base = base.decode("utf8")
+        except:
+            pass
+        if first:
+            first= False
+            graph+=""" "%(base)s" [
+        shape=folder, style=filled, colorscheme=ylgnbu3, color=2, width=3
+                label=<
+                <TABLE
+                    BORDER="0"
+                    WIDTH="4"
+                >
+                    <TR>
+                        <TD
+                            HREF="/search/%(up)s"
+                        ><U>UP</U>: %(base)s</TD>
+                        </TR>
+                        <TR>
+                        <TD
+                            HREF="/edit/%(base)s"
+                        >
+                            <U>ldif</U>
+                        </TD>
+                    </TR>
+                </TABLE>
+                > ];
+             point_%(level)d   [shape="point", width=0, height=0] ;
+             "%(base)s" -> "point_%(level)d" [arrowhead=none] ;
+            """ % dict(base=base, up=",".join(base.split(",")[1:]),level=indent)
+            same |= {"point_%d" % indent, """ "%s" """ %  base}
+        if not limit:
+            return
+        ldap.search(
+            base,
+            '(objectClass=*)',
+            search_scope = ldap3.LEVEL, 
+            attributes = [ '+', '*' ])
+        format_arg = dict(base=base, nb_items = len(ldap_cx.entries))
+        if format_arg["nb_items"]:
+            print((" " * (indent-4)) + "%(nb_items)d res" % format_arg)
+            print("")
+        total += len(ldap_cx.entries)
+        to_explore = list()
+        for rk, raw_entry in enumerate(ldap_cx.entries):
+            format_arg["new_base"] = new_base = raw_entry.entry_dn
+            format_arg["new_base"] = new_base = raw_entry.entry_dn
+            if new_base in seen:
+                continue
+            seen |= set([new_base])
+
+            #format_arg["to_print"] = to_print = "mod : %(modifyTimestamp)s, modn: %(modifiersName)s" % entry
+            format_arg["raw"] = raw_entry.entry_to_ldif()[:128].replace("\n","""<BR
+              ALIGN="left"
+              /> \n""")
+            print((" "*indent) + new_base)
+            has_kids = bool( ldap.search(new_base, '(objectClass=*)', search_scope=ldap3.LEVEL, attributes=['cn']))
+            format_arg["shape"] = has_kids and "folder" or "none"
+            format_arg["color"] = 1 + int(has_kids)
+            format_arg["level"] = indent
+            format_arg["rank"] = rk
+            format_arg["action"] = has_kids and "search" or "explain"
+            format_arg["node_name"] = new_base.split(",")[:1][0]
+            format_arg['tooltip']=format_entry(raw_entry)
+            graph += """\
+     "%(new_base)s" [
+                        shape=%(shape)s, style=filled, colorscheme=ylgnbu3
+                        width=3.5
+                        fixedsize=true
+                        color=%(color)s
+                        label=<
+                        <TABLE 
+                            BORDER="0"
+                            CLASS="class"
+                            >
+                            <TR>
+                                <TD
+                                    ALIGN="LEFT"
+                                    HREF="/%(action)s/%(new_base)s"
+                                    >%(node_name)s</TD>
+                            </TR>
+                            <TR>
+                                <TD
+                                    ALIGN="LEFT"
+                                    HREF="/edit/%(new_base)s"
+                                    >value</TD>
+                            </TR>
+                        </TABLE>
+                        > ];
+     point_%(level)d -> "%(new_base)s" [arrowhead=none,contraint=true];
+    """ % format_arg
+            if has_kids:
+                to_explore += [ (ldap_cx, dict(base=new_base, indent = indent+4,limit=limit-1, first=False),), ]
+        for kid in to_explore:
+            explore(kid[0], **kid[1])
+    explore(cx, first_base)
+    print("-" *80)
+    print("TOTAL = %d" % total)
+    return DOT_PREAMBULE % graph
+
+
+
+
+
+
+HTML_TEMPLATE = """
+<html>
+<head>
+<link href="https://fonts.googleapis.com/css?family=Andika" rel="stylesheet">
+<script
+      src="https://code.jquery.com/jquery-3.3.1.min.js"
+    integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+    crossorigin="anonymous"></script>
+    <script>
+        $(document).ready(function() {
+		$(".node").mouseenter(function() {
+                _location=$(this.querySelector('[*|href^="/search"]'));
+                _location=_location.attr("xlink:href");
+                if (_location != undefined) {
+                    console.log(_location);
+                    _location+="/true";
+                    $(this).fadeOut(100);
+                    $(this).fadeIn(500);
+                    this._timeout = function () {
+                            $(this).fadeIn(500);
+                            document.location=_location;
+                        }
+                    this.alarm=setTimeout(this._timeout, 3000,_location);
+                }
+
+			$(".modal").attr(
+				"src",
+				($(this.querySelector('[*|href^="/edit/"]')).attr("xlink:href"))+"/false");
+
+                /*$.ajax(my_ldif).done(function(data) { $("[name=main]").html(data); });*/
+}).mouseleave(function () {
+    clearTimeout(this.alarm);
+});
+        })
+    </script>
+</head>
+%s
+<body>
+<div name=main>
+%%s
+</div>
+%%s
+</body>
+</html>
+""" %  CSS
+app = Flask(__name__)
+def gen_html_from_dot(out_string):
+    import subprocess
+    proc = subprocess.Popen(
+            ['dot', '-T', 'svg'] , stdout=subprocess.PIPE,
+            stdin=subprocess.PIPE)
+    proc.stdin.write(bytes(out_string, encoding="utf8"))
+    proc.stdin.close()
+    res = proc.stdout.read()
+    proc.wait()
+    return res
+
+
+HTML = """
+<html>
+<head>
+<style>
+%s
+</style>
+<body>
+%s
+</body>
+</html>"""
+
+MODAL = """
+<iframe class=modal>
+</iframe>
+"""
+
+
+
+@app.route("/edit/<dn>", defaults={'has_iframe': "False"})
+@app.route("/edit/<dn>/<has_iframe>")
+def edit(dn, has_iframe="False"):
+    entry = get(dn)
+    pygment = format_entry(entry, alt_formater=alt_formater)
+    pygment.replace('\n','<br />')
+    map_entry = dict(dn=entry.entry_dn, pygment=pygment)
+    return HTML_TEMPLATE % ("""
+    <h1>%(dn)s</h1>
+        <code>
+        %(pygment)s
+        </code>
+    """ % (map_entry), ""
+    )
+
+
+@app.route("/search/<dn>", defaults={'has_iframe': "True"})
+@app.route("/search/<dn>/<has_iframe>")
+def _search(dn=None, has_iframe="True"):
+    dn = dn or CONFIG["search_base"]
+    svg = graph_svg(ldap, dn)
+    modal = has_iframe.lower() != "false" and MODAL or ""
+    Path("search.out").write_text(svg)
+    res=gen_html_from_dot(svg).decode("utf8")
+    if not has_iframe:
+        return res
+    return HTML_TEMPLATE % (gen_html_from_dot(svg).decode("utf8"), modal)
+
+@app.route("/")
+def base():
+    return _search()
+
+app.run(host="0.0.0.0", debug=CONFIG.get("debug"), port=5001)
+
