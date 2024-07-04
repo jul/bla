@@ -47,13 +47,16 @@ olcDatabase: mdb
 OlcDbMaxSize: 1073741824
 olcSuffix: dc=home
 olcRootDN: cn=root,dc=home
-olcRootPW: {SHA}5en6G6MezRroT3XKqkdPOmY/BfQ=
+olcRootPW: `slappasswd -h {SHA} -s $PASSWD`
 olcDbDirectory: `pwd`/$1
 olcDbIndex: objectClass eq
 olcDbIndex: uid pres,eq
 olcDbIndex: mail pres,sub,eq
 olcDbIndex: cn,sn pres,sub,eq
 olcDbIndex: dc eq
+olcAccess: to *
+  by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage
+  by * break
 
 dn: olcDatabase=config,cn=config
 objectClass: olcDatabaseConfig
