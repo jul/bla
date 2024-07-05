@@ -59,6 +59,8 @@ PORT=${PORT:-6666}
 IP=${IP:-127.0.0.1}
 PASSWD=${PASSWD:-secret}
 BASEDN="dc=home"
+THERE=$( realpath $1 )
+HERE=$( dirname $0 )
 
 
 [ -z $1 ] && {
@@ -66,22 +68,27 @@ BASEDN="dc=home"
     exit 1
 }
 echo F*ck apparmor prevents standalone slapd please install apparmor-utils
-doas aa-disable slapd
-kill $( cat "`pwd`/$1/slapd.pid" )
+echo try if slapd fail without explanation : 
+echo sudo aa-disable slapd
+kill $( cat "${THERE}/slapd.pid" )
 echo last chance to hit ctrl + C before destroying \"$1\"
 read -r a
 rm "$1" -rf 
-[ -d "$1" ] ||  mkdir "$1"
+[ -d "$1" ] ||  mkdir -p "$1"
+cp $HERE/RootCA.pem $THERE/RootCA.pem
+cp $HERE/localhost.home.crt $THERE/
+cp $HERE/localhost.home.key $THERE/
+
 chmod 700 "$1"
 
-cat << CONFIG > "`pwd`/initial.ldif"
+cat << CONFIG > "$HERE/initial.ldif"
 dn: cn=config
 objectClass: olcGlobal
-olcArgsFile: `pwd`/$1/slapd.args
-olcPidFile: `pwd`/$1/slapd.pid
-olcTLSCACertificateFile: `pwd`/RootCA.pem
-olcTLSCertificateFile: `pwd`/localhost.home.crt
-olcTLSCertificateKeyFile: `pwd`/localhost.home.key
+olcArgsFile: ${THERE}/slapd.args
+olcPidFile: ${THERE}/slapd.pid
+olcTLSCACertificateFile: ${THERE}/RootCA.pem
+olcTLSCertificateFile: ${THERE}/localhost.home.crt
+olcTLSCertificateKeyFile: ${THERE}/localhost.home.key
 olcTLSProtocolMin: 3.1
 
 dn: cn=schema,cn=config
@@ -113,7 +120,7 @@ OlcDbMaxSize: 1073741824
 olcSuffix: dc=home
 olcRootDN: cn=root,$BASEDN
 olcRootPW: `slappasswd -h {SHA} -s $PASSWD`
-olcDbDirectory: `pwd`/$1
+olcDbDirectory: $THERE
 olcDbIndex: objectClass eq
 olcDbIndex: uid pres,eq
 olcDbIndex: mail pres,sub,eq
@@ -146,7 +153,7 @@ olcOverlay: {1}ppolicy
 olcPPolicyHashCleartext: TRUE
 
 CONFIG
-/usr/sbin/slapadd  -n 0 -F $1  -l `pwd`/initial.ldif
+/usr/sbin/slapadd  -n 0 -F $1  -l $HERE/initial.ldif
 
-/usr/sbin/slapd  -u $USER  -F $1  -h ldap://$IP:$PORT &
+/usr/sbin/slapd  -u $USER  -F $THERE  -h ldap://$IP:$PORT &
 
