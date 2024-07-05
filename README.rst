@@ -100,7 +100,7 @@ example:
      password("uid=boss,ou=people,dc=home")
      pe(get("uid=boss,ou=people,dc=home"))
 
-    bla bla.test.json test.bla
+    bla bla.json test.bla
     # fill in a password has demanded
     # exit
     # browse the tree
