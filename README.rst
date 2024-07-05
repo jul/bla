@@ -6,9 +6,7 @@ BLA : Brutal LDAP Admin
 Synopsis
 ========
 
-LDAP is great, make LDAP great again
-
-LDAP is a great extensible Entity Value (key/value storage) with security
+LDAP is a great extensible Entity Value (key/value storage) with security in mind. It's a great tool with a terrible User Experience when it comes to the tooling.
 
 
 Why people (as I) are reluctant to use it ?
@@ -32,7 +30,7 @@ We also want history since we often make the same operation over and over again.
 Second Problem
 **************
 
-LDAP is a NoSQL without fixed schema and with non intuitive behaviour:
+LDAP is a NoSQL without fixed schema, but STRONGLY TYPED and with non intuitive behaviour:
 
 Indexes behaviour
 -----------------
@@ -44,6 +42,8 @@ descriptions it does not.
 
 So how do you search for all descriptions were sysadmins lovingly put
 informations about for whom a field was created in which context ?
+
+
 
 Default settings
 ----------------
@@ -78,13 +78,23 @@ Design choices
 Demo
 ====
 
+example:
+
+.. code-block:: bash
+
+    # activate your virtual env
+    python3 -mpip install .
+    # standalone ldap server for tests
+    ./bootstrap.sh slapd
+    # calling bla with credentials for this server, and calling test.bla  
+    # which creates ou=people,dc=home and create 3 users there
+    bla bla.test.json test.bla
+    # fill in a password has demanded
+    # exit
+    # browse the tree
+    lhl
+    firefox http://127.0.0.1:5001
 
 
-
-
-
-
-
-
-
+.. image:: ./img/screenshot.png
 

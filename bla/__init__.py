@@ -8,15 +8,14 @@ LICENSE:
     GNU General Public License https://www.gnu.org/licenses/gpl.html
 
 AUTHOR
-    Logilab <http://logilab.fr>
-    julien.tayon@logilab.fr
+    julien@tayon.net
 
 
 """
 from ldap3 import Server, Connection
 from ldap3.core.exceptions import LDAPCursorError
 import ldap3
-from collections import MutableMapping
+from collections.abc import MutableMapping
 from subprocess import run as call
 
 from time import time
@@ -44,6 +43,7 @@ except:
 
 GLOBAL_CONFIG = "/etc/bla.json"
 USER_CONFIG = "~/.bla.json"
+USER_SCRIPT=""
 GLOBAL_LDAP_CONF = "/etc/ldap/ldap.conf"
 SENTINEL = object()
 CONFIG = dict()
@@ -85,7 +85,7 @@ except IndexError:
     pass
 
 try:
-    USER_CONFIG = argv[2]
+    USER_SCRIPT = argv[2]
     #print("file %s loaded" % USER_CONFIG)
 except IndexError:
     pass
@@ -535,6 +535,17 @@ try:
             lambda e: getattr(e, x).value,
             search("(%s=*)" % x, attributes=[x]))) + [min_def]
         )
+        uidNumber = 2000
+        try:
+            uidNumber=max_def("uidNumber")+1
+        except:
+            pass
+        gidNumber = 2000
+        try:
+            gidNumber=max_def("gidNumber")+1
+        except:
+            pass
+        
         user_template = CONFIG.get(
                 "user_template",
                 dict(
@@ -543,36 +554,32 @@ try:
                     attributes=dict(
                         loginShell="/bin/bash",
                         homeDirectory="/home/%s" % uid,
-                        uidNumber=max_def("uidNumber")+1,
-                        uid=uid, cn=uid, gidNumber=max_def("gidNumber"),
+                        uidNumber=uidNumber,
+                        uid=uid, cn=uid, gidNumber=gidNumber,
                         userPassword="{crypt}rien"
                     )
                 )
             )
 
-        ldap.add("uid=%s,ou=people,dc=perdu" % uid, **user_template)
+        ldap.add("uid=%s,ou=People,dc=home" % uid, **user_template)
 
     def walk(
             search_base=CONFIG["search_base"],
             emit=lambda e: e,
-            apply=False,
-            limit=10,
             filter=do_nothing,
     ):
+        """ walk from given dn and descend into all entries.
+        emit applies function to entry, returns results.
+        filter serves as ... a filter
+        """
         ldap.search(
             search_filter='(objectClass=*)',
             search_base=search_base,
             search_scope="LEVEL",
             attributes=['+', '*']
         )
-        if not limit:
-            return
-
-        limit -= 1
         for e in ldap.entries:
             if filter(e):
-                if apply:
-                    apply(e)
                 emit_me = emit(e)
                 if emit_me:
                     yield emit_me
@@ -581,8 +588,6 @@ try:
                     search_base=e.entry_dn,
                     filter=filter,
                     emit=emit,
-                    apply=apply,
-                    limit=limit
             )
 
     def last():
@@ -605,7 +610,8 @@ try:
         translate = dict(
                 sasl_mechanism=dict(key="--sasl-mech"),
                 host=dict(key="-h"),
-                start_tls=dict(key="-Z", apply=lambda x: ""),
+                # mouais
+                #start_tls=dict(key="-Z", apply=lambda x: ""),
                 user=dict(key="--user"),
                 password=dict(key="--password"),
                 search_base=dict(key="-b"),
@@ -657,6 +663,9 @@ try:
             user or CONFIG.get("user"), new_password=newpass) and "OK" or "KO")
     
     pp = lambda s: dumps(s, indent=4, default=repr)
+    if USER_SCRIPT:
+        print(f"script detected executing : {USER_SCRIPT}")
+        exec(open(USER_SCRIPT).read())
 
 except Exception as e:
     print(e)

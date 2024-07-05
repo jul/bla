@@ -79,6 +79,10 @@ dn: cn=config
 objectClass: olcGlobal
 olcArgsFile: `pwd`/$1/slapd.args
 olcPidFile: `pwd`/$1/slapd.pid
+olcTLSCACertificateFile: `pwd`/RootCA.pem
+olcTLSCertificateFile: `pwd`/localhost.home.crt
+olcTLSCertificateKeyFile: `pwd`/localhost.home.key
+olcTLSProtocolMin: 3.1
 
 dn: cn=schema,cn=config
 objectClass: olcSchemaConfig
@@ -116,6 +120,7 @@ olcDbIndex: cn,sn pres,sub,eq
 olcDbIndex: dc eq
 olcAccess: to *
   by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage
+  by dn="cn=root,dc=home" manage
   by * break
 
 dn: olcOverlay={0}memberof,olcDatabase={1}mdb,cn=config
