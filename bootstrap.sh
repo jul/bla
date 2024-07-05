@@ -79,6 +79,10 @@ dn: cn=config
 objectClass: olcGlobal
 olcArgsFile: `pwd`/$1/slapd.args
 olcPidFile: `pwd`/$1/slapd.pid
+olcTLSCACertificateFile: `pwd`/RootCA.pem
+olcTLSCertificateFile: `pwd`/localhost.home.crt
+olcTLSCertificateKeyFile: `pwd`/localhost.home.key
+olcTLSProtocolMin: 3.1
 
 dn: cn=schema,cn=config
 objectClass: olcSchemaConfig
@@ -98,6 +102,7 @@ cn: module
 olcModulePath: /usr/lib/ldap/
 olcModuleLoad: back_mdb.so
 olcModuleLoad: memberof.la
+olcModuleLoad: ppolicy
 
 
 dn: olcDatabase=mdb,cn=config
@@ -114,9 +119,13 @@ olcDbIndex: uid pres,eq
 olcDbIndex: mail pres,sub,eq
 olcDbIndex: cn,sn pres,sub,eq
 olcDbIndex: dc eq
-olcAccess: to *
+olcAccess: {0}to *
   by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage
   by * break
+olcAccess: {1}to dn.children="ou=people,dc=home" attrs=userPassword,shadowExpire,shadowInactive,shadowLastChange,shadowMax,shadowMin,shadowWarning
+  by self write
+  by anonymous auth
+
 
 dn: olcOverlay={0}memberof,olcDatabase={1}mdb,cn=config
 objectClass: olcConfig
@@ -129,6 +138,13 @@ olcMemberOfRefInt: TRUE
 olcMemberOfGroupOC: groupOfNames
 olcMemberOfMemberAD: member
 olcMemberOfMemberOfAD: memberOf
+
+dn: olcOverlay={1}ppolicy,olcDatabase={1}mdb,cn=config
+objectClass: olcOverlayConfig
+objectClass: olcPPolicyConfig
+olcOverlay: {1}ppolicy
+olcPPolicyHashCleartext: TRUE
+
 CONFIG
 /usr/sbin/slapadd  -n 0 -F $1  -l `pwd`/initial.ldif
 
