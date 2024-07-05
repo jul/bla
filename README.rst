@@ -88,6 +88,18 @@ example:
     ./bootstrap.sh slapd
     # calling bla with credentials for this server, and calling test.bla  
     # which creates ou=people,dc=home and create 3 users there
+    cat bla.test
+     ldap.add("dc=home", [ "dcObject", "organization", "top"], dict(dc="home", o="home"))
+     ldap.add("ou=people,dc=home",  'organizationalUnit', dict(ou="people"))
+     [ user_add(i) for i in ( "boss", "manager", "louis" ) ]
+     ldap.add("ou=group,dc=home",  'organizationalUnit', dict(ou="group"))
+     ldap.add("cn=staff,ou=group,dc=home",  ['top', "groupOfNames"],attributes= dict(member=["uid=boss,ou=people,dc=home" ]))
+     search("(uid=boss)", attributes="memberOf")
+     list(walk("dc=home",lambda e:e.entry_dn))
+     pe(get("uid=boss,ou=people,dc=home"))
+     password("uid=boss,ou=people,dc=home")
+     pe(get("uid=boss,ou=people,dc=home"))
+
     bla bla.test.json test.bla
     # fill in a password has demanded
     # exit
