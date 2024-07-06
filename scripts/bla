@@ -77,7 +77,7 @@ AUTHOR
 
 
 """
-from bla import *
+from blabing import *
 import IPython
 import inspect
 

@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "blabing"
+version = "0.1.2"
+dependencies = [ "ldap3", "tempdir", "PyYAML", "ipython", "pygments-ldif", "flask" ]
+requires-python = ">=3.9"
+authors = [
+  {name = "Julien Tayon", email = "julien@tayon.net"},
+]
+maintainers = [
+  {name = "Julien Tayon", email = "julien@tayon.net"},
+]
+description = "Building a convenient CLI on top of LDAP3"
+readme = "README.rst"
+license = {file = "LICENSE.txt"}
+keywords = ["LDAP", "cli"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python"
+]
+
+[project.urls]
+Homepage = "https://github.com/jul/bla"
+[tool.setuptools.packages.find]
+where = ["."]
+include=["blabing/*"]
+namespaces = false
+
+
+[tool.setuptools]
+script-files = ["scripts/bla", "scripts/lhl", "scripts/standalone_ldap.sh"]
+py-modules = [ "blabing" ]
+provides = [ "blabing"]

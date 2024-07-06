@@ -3,7 +3,7 @@
 
 =head1 SYNOPSIS
 
-[USER=$USER] [PORT=6666] [IP=127.0.0.1] [PASSWORD=secret] [BASEDN="dc=home"]  bootstrap.sh DIRECTORY
+[USER=$USER] [TLS_DIR=] [PORT=6666] [IP=127.0.0.1] [PASSWORD=secret] [BASEDN="dc=home"]  standalone_ldap.sh DIRECTORY
 
 bootstrap a standalone ldap server on given port and address with all data in DIRECTORY
 
@@ -18,6 +18,11 @@ User with which slapd runs
 =item PORT
 
 Port slapd will listen too
+
+=item TLS_DIR
+
+Directory with the files : RootCA.pem, localhost.home.pem, localhost.home.key
+required for a TLS connection
 
 =item IP
 
@@ -61,10 +66,11 @@ PASSWD=${PASSWD:-secret}
 BASEDN="dc=home"
 THERE=$( realpath $1 )
 HERE=$( dirname $0 )
+TLS_DIR=${TLS_DIR:-""}
 
 
 [ -z $1 ] && {
-    perldoc $0 || head -n 56 $0
+    perldoc $0 || head -n 59 $0
     exit 1
 }
 echo F*ck apparmor prevents standalone slapd please install apparmor-utils
@@ -75,9 +81,11 @@ echo last chance to hit ctrl + C before destroying \"$1\"
 read -r a
 rm "$1" -rf 
 [ -d "$1" ] ||  mkdir -p "$1"
-cp $HERE/RootCA.pem $THERE/RootCA.pem
-cp $HERE/localhost.home.crt $THERE/
-cp $HERE/localhost.home.key $THERE/
+if [ ! -z $TLS_DIR ]; then 
+    cp "$TLS_DIR/RootCA.pem" "$THERE/RootCA.pem"
+    cp "$TLS_DIR/localhost.home.crt" "$THERE/"
+    cp "$TLS_DIR/localhost.home.key" "$THERE/"
+fi
 
 chmod 700 "$1"
 
@@ -86,10 +94,19 @@ dn: cn=config
 objectClass: olcGlobal
 olcArgsFile: ${THERE}/slapd.args
 olcPidFile: ${THERE}/slapd.pid
+CONFIG
+if [ ! -z "$TLS_DIR" ]; then
+    echo "adding certificates in «$TLS_DIR»"
+    cat << CONFIG2 >> "$HERE/initial.ldif"
 olcTLSCACertificateFile: ${THERE}/RootCA.pem
 olcTLSCertificateFile: ${THERE}/localhost.home.crt
 olcTLSCertificateKeyFile: ${THERE}/localhost.home.key
 olcTLSProtocolMin: 3.1
+CONFIG2
+
+fi
+
+cat << CONFIG3 >> "$HERE/initial.ldif"
 
 dn: cn=schema,cn=config
 objectClass: olcSchemaConfig
@@ -152,7 +169,7 @@ objectClass: olcPPolicyConfig
 olcOverlay: {1}ppolicy
 olcPPolicyHashCleartext: TRUE
 
-CONFIG
+CONFIG3
 /usr/sbin/slapadd  -n 0 -F $1  -l $HERE/initial.ldif
 
 /usr/sbin/slapd  -u $USER  -F $THERE  -h ldap://$IP:$PORT &

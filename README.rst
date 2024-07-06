@@ -83,9 +83,9 @@ example:
 .. code-block:: bash
 
     # activate your virtual env
-    python3 -mpip install .
+    python3 -mpip install blabing
     # standalone ldap server for tests
-    ./bootstrap.sh slapd
+    standalone_ldap.sh slap
     # calling bla with credentials for this server, and calling test.bla  
     # which creates ou=people,dc=home and create 3 users there
     cat bla.test
@@ -100,11 +100,11 @@ example:
      password("uid=boss,ou=people,dc=home")
      pe(get("uid=boss,ou=people,dc=home"))
 
-    bla bla.json test.bla
+    bla bla.no_tls.json test.bla
     # fill in a password has demanded
     # exit
     # browse the tree
-    lhl
+    lhl bla.no_tls.json
     firefox http://127.0.0.1:5001
 
 
