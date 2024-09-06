@@ -10,20 +10,20 @@
     "password": "secret",
     "auto_bind": true,
     "search_filter": "(objectClass=*)",
-    "host": "127.0.0.1:6666",
+    "host": "ldap://127.0.0.1",
     "port": "6666",
 
     "mail_search" : {
-      "search_base" : "ou=People,%(search_base)s",
-      "search_filter" : "(uid=*)",
-      "attributes" : ["mail", "cn"],
-      "search_scope" : "LEVEL"
-     },
-     "cli" : {
-	 "show_entries" : true,
-	 "lexer" : "ldif",
-	 "format_opt" : {
-		 "bg" : "dark"
-	}
-     }
+        "search_base" : "ou=People,%(search_base)s",
+        "search_filter" : "(uid=*)",
+        "attributes" : ["mail", "cn"],
+        "search_scope" : "LEVEL"
+    },
+    "cli" : {
+        "show_entries" : true,
+        "lexer" : "ldif",
+        "format_opt" : {
+            "bg" : "dark"
+        }
+    }
 }

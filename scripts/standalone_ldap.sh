@@ -67,12 +67,19 @@ BASEDN="dc=home"
 THERE=$( realpath $1 )
 HERE=$( dirname $0 )
 TLS_DIR=${TLS_DIR:-""}
+DELETE=${DELETE:-1}
+
 
 
 [ -z $1 ] && {
     perldoc $0 || head -n 59 $0
     exit 1
 }
+kill $( cat $THERE/slapd.pid )
+if [ "$DELETE" -eq 1 ]; then
+    echo "******************"
+    echo $DELETE
+    echo "******************"
 echo F*ck apparmor prevents standalone slapd please install apparmor-utils
 echo try if slapd fail without explanation : 
 echo sudo aa-disable slapd
@@ -128,6 +135,13 @@ olcModuleLoad: back_mdb.so
 olcModuleLoad: memberof.la
 olcModuleLoad: ppolicy
 
+dn: olcDatabase={0}config,cn=config
+objectClass: olcDatabaseConfig
+olcDatabase: {0}config
+olcAccess: {0}to *  by * none
+olcRootDN: cn=admin,cn=config
+olcRootPW: `slappasswd -h {SHA} -s $PASSWD`
+
 
 dn: olcDatabase=mdb,cn=config
 objectClass: olcDatabaseConfig
@@ -171,6 +185,8 @@ olcPPolicyHashCleartext: TRUE
 
 CONFIG3
 /usr/sbin/slapadd  -n 0 -F $1  -l $HERE/initial.ldif
+fi
+
 
 /usr/sbin/slapd  -u $USER  -F $THERE  -h ldap://$IP:$PORT &
 

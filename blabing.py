@@ -669,4 +669,4 @@ try:
 
 except Exception as e:
     print(e)
-    print("Testing mode config not loaded")
+    print("Testing mode config not loaded.")

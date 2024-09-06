@@ -2,8 +2,11 @@ ldap.add("dc=home", [ "dcObject", "organization", "top"], dict(dc="home", o="hom
 ldap.add("ou=people,dc=home",  'organizationalUnit', dict(ou="people"))
 [ user_add(i) for i in ( "boss", "manager", "louis" ) ]
 ldap.add("ou=group,dc=home",  'organizationalUnit', dict(ou="group"))
+assert ldap.delete("uid=louis,ou=people,dc=home")
+
+assert len(search("dc=home","(uid=*)"))==2
 ldap.add("cn=staff,ou=group,dc=home",  ['top', "groupOfNames"],attributes= dict(member=["uid=boss,ou=people,dc=home" ]))
-search("(uid=boss)", attributes="memberOf")
+assert search("(uid=boss)", attributes="memberOf")
 list(walk("dc=home",lambda e:e.entry_dn))
 pe(get("uid=boss,ou=people,dc=home"))
 password("uid=boss,ou=people,dc=home")
