@@ -3,15 +3,14 @@
     "debug": false,
     "get_info" : "ALL",
     "search_scope": "SUBTREE",
-    "base": "cn=config",
+    "base": "dc=home",
     "start_tls" : false,
     "search_base": "dc=home",
     "user" : "cn=root,dc=home",
     "password": "secret",
     "auto_bind": true,
     "search_filter": "(objectClass=*)",
-    "host": "ldap://127.0.0.1",
-    "port": "6666",
+    "host": "ldap://127.0.0.1:6666",
 
     "mail_search" : {
         "search_base" : "ou=People,%(search_base)s",

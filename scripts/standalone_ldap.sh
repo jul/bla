@@ -59,7 +59,7 @@ L<https://wiki.archlinux.org/title/openLDAP>
 =back
 
 =cut
-
+set -x 
 PORT=${PORT:-6666}
 IP=${IP:-127.0.0.1}
 PASSWD=${PASSWD:-secret}
@@ -70,23 +70,23 @@ TLS_DIR=${TLS_DIR:-""}
 DELETE=${DELETE:-1}
 
 
-
 [ -z $1 ] && {
     perldoc $0 || head -n 59 $0
     exit 1
 }
-kill $( cat $THERE/slapd.pid )
+[ -f $THERE/slapd.pid ] && kill $( cat $THERE/slapd.pid )
 if [ "$DELETE" -eq 1 ]; then
     echo "******************"
-    echo $DELETE
+    echo Deleting
     echo "******************"
-echo F*ck apparmor prevents standalone slapd please install apparmor-utils
-echo try if slapd fail without explanation : 
-echo sudo aa-disable slapd
-kill $( cat "${THERE}/slapd.pid" )
-echo last chance to hit ctrl + C before destroying \"$1\"
-read -r a
-rm "$1" -rf 
+    echo last chance to hit ctrl + C before destroying \"$1\"
+    echo F*ck apparmor prevents standalone slapd please install apparmor-utils
+    echo try if slapd fail without explanation : 
+    echo sudo aa-disable slapd
+    [ -f $THERE/slapd.pid ] && kill $( cat $THERE/slapd.pid )
+    read -r a
+    rm "$1" -rf 
+fi
 [ -d "$1" ] ||  mkdir -p "$1"
 if [ ! -z $TLS_DIR ]; then 
     cp "$TLS_DIR/RootCA.pem" "$THERE/RootCA.pem"
@@ -96,7 +96,7 @@ fi
 
 chmod 700 "$1"
 
-cat << CONFIG > "$HERE/initial.ldif"
+cat << CONFIG > "$THERE/initial.ldif"
 dn: cn=config
 objectClass: olcGlobal
 olcArgsFile: ${THERE}/slapd.args
@@ -104,7 +104,7 @@ olcPidFile: ${THERE}/slapd.pid
 CONFIG
 if [ ! -z "$TLS_DIR" ]; then
     echo "adding certificates in «$TLS_DIR»"
-    cat << CONFIG2 >> "$HERE/initial.ldif"
+    cat << CONFIG2 >> "$THERE/initial.ldif"
 olcTLSCACertificateFile: ${THERE}/RootCA.pem
 olcTLSCertificateFile: ${THERE}/localhost.home.crt
 olcTLSCertificateKeyFile: ${THERE}/localhost.home.key
@@ -113,7 +113,7 @@ CONFIG2
 
 fi
 
-cat << CONFIG3 >> "$HERE/initial.ldif"
+cat << CONFIG3 >> "$THERE/initial.ldif"
 
 dn: cn=schema,cn=config
 objectClass: olcSchemaConfig
@@ -184,9 +184,8 @@ olcOverlay: {1}ppolicy
 olcPPolicyHashCleartext: TRUE
 
 CONFIG3
-/usr/sbin/slapadd  -n 0 -F $1  -l $HERE/initial.ldif
-fi
+/usr/sbin/slapadd  -n0  -F $1  -l "$THERE/initial.ldif"
 
 
-/usr/sbin/slapd  -u $USER  -F $THERE  -h ldap://$IP:$PORT &
+/usr/sbin/slapd -n0 -u $USER  -F $THERE  -h ldap://$IP:$PORT &
 
