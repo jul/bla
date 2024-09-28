@@ -41,12 +41,12 @@ DESCRIPTION
     {
         "authentication": "SASL",
         "auto_bind": true,
-        "base": "dc=logilab,dc=fr",
+        "base": "dc=home
         "host": "ldap1",
         "sasl_mechanism": "GSSAPI",
-        "search_base": "dc=logilab,dc=fr",
+        "search_base": "dc=home
         "search_filter": "(objectClass=*)",
-        "uri": "ldap://licorne.tls.logilab.fr"
+        "uri": "ldap://ldap/
     }
 
     All values in these dict are used as defaults even for
@@ -72,8 +72,7 @@ SEE ALSO
     ldapsearch
 
 AUTHOR
-    Logilab <http://logilab.fr>
-    julien.tayon@logilab.fr
+    julien@tayon.net
 
 
 """
