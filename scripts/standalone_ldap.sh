@@ -59,7 +59,6 @@ L<https://wiki.archlinux.org/title/openLDAP>
 =back
 
 =cut
-set -x 
 PORT=${PORT:-6666}
 IP=${IP:-127.0.0.1}
 PASSWD=${PASSWD:-secret}
