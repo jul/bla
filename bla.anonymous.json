@@ -4,14 +4,13 @@
     "get_info" : "ALL",
     "search_scope": "SUBTREE",
     "base": "cn=config",
-    "user" : "cn=admin,cn=config",
-    "password" : "aucun",
     "auto_bind": true,
     "search_filter": "(objectClass=*)",
     "host": "127.0.0.1",
+    "start_tls" : false,
+    "search_base" : "ou=People,dc=home",
 
     "mail_search" : {
-      "search_base" : "ou=People,%(search_base)s",
       "search_filter" : "(uid=*)",
       "attributes" : ["mail", "cn"],
       "search_scope" : "LEVEL"

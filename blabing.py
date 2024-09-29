@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# Licence : see license in package (
+# Licence : see license in package
 
 """
 
@@ -28,6 +28,9 @@ from json import dumps
 import inspect
 import logging
 from getpass import getpass
+GR='\033[0;32m'
+RD='\033[0;31m'
+RZ='\033[0m'
 
 has_pygments = False
 formater = lambda x: x
@@ -37,9 +40,17 @@ try:
     from pygments.formatters import TerminalFormatter as formater
     import pygments.lexers
     has_pygments = True
+    
 except:
     pass
+color = lambda col : lambda s : f"{col}{s}{RZ}"
 
+red = color(RD)
+grn = color(GR)
+OK=grn("OK")
+KO=red("KO")
+
+print("pygment loaded " + (has_pygments and grn("OK") or red("KO")))
 
 GLOBAL_CONFIG = "/etc/bla.json"
 USER_CONFIG = "~/.bla.json"
@@ -60,9 +71,11 @@ try:
     })
     if "base" in CONFIG:
         CONFIG["search_base"] = CONFIG["base"]
-except Exception:
-    pass
+    print(f"base found {OK}")
 
+except Exception:
+    print(f"base not found {KO}")
+    pass
 
 def usage():
     print(__doc__)
@@ -70,7 +83,7 @@ def usage():
 
 def error(*a, **kw):
     usage()
-    print("**** ERROR ****")
+    print(red("**** ERROR ****"))
     print()
     print("%r,%r" % (a,kw))
     print()
@@ -80,14 +93,19 @@ def error(*a, **kw):
 
 try:
     USER_CONFIG = argv[1]
-    #print("file %s loaded" % USER_CONFIG)
+    print("file %s loaded " % USER_CONFIG, end='')
+    print(OK)
 except IndexError:
+    print(KO)
     pass
 
 try:
     USER_SCRIPT = argv[2]
-    #print("file %s loaded" % USER_CONFIG)
+    print("file %s loaded " % USER_SCRIPT, end='')
+    print(OK)
 except IndexError:
+    print("no user script provided " , end='')
+    print(OK)
     pass
 
 
@@ -125,7 +143,7 @@ def pe(e):
     """print beautified entry
     expect in %(USER_CONFIG)s a cli key with following values:
         - lexer (default ldif (json possible)) to tell what you prefer to see
-        - format_opt given to the pygments.Ter
+        - format_opt given to the pygments.
     if pygments is not installed will revert to json.dumps with indent=4
     """
     print(format_entry(e))
@@ -228,6 +246,7 @@ except Exception:
 
 CONFIG.update(load_config(GLOBAL_CONFIG), ignore_missing=True)
 CONFIG.update(load_config(USER_CONFIG), ignore_missing=True)
+print("config updated " + OK)
 
 
 if "password" not in CONFIG and "user" in CONFIG:
@@ -237,7 +256,7 @@ if "password" not in CONFIG and "user" in CONFIG:
     else:
         print("please enter password for %r" % CONFIG["user"])
         CONFIG["password"] = getpass()
-
+print("password aquired " + OK)
 
 if not CONFIG.keys() & {"host", "uri"}:
     error(
@@ -261,6 +280,7 @@ def set_logging(filename=False):
 
 if CONFIG.get("logging"):
     set_logging(CONFIG["logging"])
+    print("logging activated " + OK)
 
 
 def get_params_from_sig(a_func):
@@ -332,7 +352,7 @@ def get_default_config(
         provided = keep | (set(kw) & set(pos_d))
         dbg(provided)
         # before : non know positionnal argument from sig (like self)
-        # that are not in provided keywords un call
+        # that are not in provided keywords in call
         # or values that can be subtituted
         key_before = [k for k in pos_d if k not in kw and k not in _realm]
         dbg(key_before)
@@ -476,11 +496,14 @@ dns_entry_search = CONFIG.get("dns_entry_search", dict(
 ))
 
 Connection.__init__ = get_default_config(Connection.__init__)
+
+
 Connection.s = get_default_config(
     Connection.search,
     epilogue=return_entries,
 )
 
+### MONKEY PATCHING TO CREATE NEW METHODS
 Connection.search_mail = get_default_config(
     Connection.search, CONFIG.get("mail_search"),
     epilogue=return_entries,
@@ -521,6 +544,7 @@ Connection.__repr__ = lambda self: "Connection (%d)" % id(self)
 try:
 
     ldap = EasierLDAP(CONFIG["host"])
+    print("ldap connection " + OK)
     # si ZZ necessaire, auto_bind va péter
     try:
         del(CONFIG["auto_bind"])
@@ -528,8 +552,14 @@ try:
         pass
     if CONFIG.get("start_tls", "true"):
         ldap.start_tls()
-    ldap.bind()
+        print("tls started " + OK)
+    try:
+        ldap.bind()
+        print("ldap bind  " + OK)
+    except:
+        print("ldap bind " + red("anonymous"))
 
+    print("connected as " + grn(ldap.user or "anonymous"))
     def user_add(uid, **kw):
         max_def = lambda x, min_def=2000: max(list(map(
             lambda e: getattr(e, x).value,
@@ -664,9 +694,17 @@ try:
     
     pp = lambda s: dumps(s, indent=4, default=repr)
     if USER_SCRIPT:
-        print(f"script detected executing : {USER_SCRIPT}")
-        exec(open(USER_SCRIPT).read())
+        print(f"script detected executing : {grn(USER_SCRIPT)}")
+        try:
+            exec(open(USER_SCRIPT).read())
+        except Exception as e:
+            print("script execution " + KO)
+            error(e)
+
+
+
 
 except Exception as e:
-    print(e)
+    print("Connection " + KO)
+    print(red(e))
     print("Testing mode config not loaded.")
