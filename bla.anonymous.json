@@ -6,7 +6,7 @@
     "base": "cn=config",
     "auto_bind": true,
     "search_filter": "(objectClass=*)",
-    "host": "127.0.0.1",
+    "host": "ldap://127.0.0.1:6666",
     "start_tls" : false,
     "search_base" : "ou=People,dc=home",
 

@@ -317,7 +317,7 @@ def get_default_config(
     """BUG (not really): double decoration gives weird results when
     a key has same name in 2 calls"""
     pos_d, keyword_d = get_params_from_sig(method)
-    if global_conf is SENTINEL:
+    if global_conf is SENTINEL or True:
         global_conf = CONFIG.copy()
     _realm = realm
     if realm is SENTINEL:
@@ -436,6 +436,9 @@ class EasierLDAP(Connection):
             new_server = Server(*a, **kw)
             new_pos = [new_server] + list(a)[1:]
         super().__init__(*new_pos, **kw)
+        print(**kw)
+        print(**kw)
+        print(self)
 
     def get(self, dn):
             if not self.search(
@@ -540,26 +543,29 @@ Server.__init__ = get_default_config(Server.__init__, CONFIG.get("server", {}))
 Server.__repr__ = Server.__string__ = lambda self: "Server (%d)" % id(self)
 Connection.__repr__ = lambda self: "Connection (%d)" % id(self)
 
-
-try:
-
+def connect(**kw):
+    """return a connection to the LDAP Server based on the config"""
     ldap = EasierLDAP(CONFIG["host"])
-    print("ldap connection " + OK)
+    print(f"ldap connection to {CONFIG['host']} " + OK)
     # si ZZ necessaire, auto_bind va péter
-    try:
-        del(CONFIG["auto_bind"])
-    except:
-        pass
     if CONFIG.get("start_tls", "true"):
         ldap.start_tls()
         print("tls started " + OK)
     try:
-        ldap.bind()
-        print("ldap bind  " + OK)
-    except:
-        print("ldap bind " + red("anonymous"))
+        print(f"trying to bing with user {grn(CONFIG.get('user'))}")
+        print(f"trying to bing with user {grn(CONFIG.get('password'))}")
+        if ldap.bind():
+            print("ldap bind  " + OK)
+
+    except Exception as e:
+        print(f"ldap bind returned false {e}, connected as  " + red("anonymous"))
 
     print("connected as " + grn(ldap.user or "anonymous"))
+
+    return ldap
+
+try:
+    ldap = connect()
     def user_add(uid, **kw):
         max_def = lambda x, min_def=2000: max(list(map(
             lambda e: getattr(e, x).value,
@@ -699,7 +705,6 @@ try:
             exec(open(USER_SCRIPT).read())
         except Exception as e:
             print("script execution " + KO)
-            error(e)
 
 
 

@@ -9,7 +9,7 @@ ldap.add("cn=staff,ou=group,dc=home",  ['top', "groupOfNames"],attributes= dict(
 assert search("(uid=boss)", attributes="memberOf")
 list(walk("dc=home",lambda e:e.entry_dn))
 pe(get("uid=boss,ou=people,dc=home"))
-password("uid=boss,ou=people,dc=home")
+password("uid=boss,ou=people,dc=home", 'aucun')
 pe(get("uid=boss,ou=people,dc=home"))
 
 

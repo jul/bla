@@ -1,0 +1,247 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# Licence : see license in package (
+
+"""
+NOM
+
+SYNOPSIS
+
+    chpass [config.anonymous.json]
+
+DESCRIPTION
+
+    Changing passwords the ldap way (anomymous, than simple bind)
+
+SEE ALSO
+
+    ldapsearch, bla
+
+AUTHOR
+    julien@tayon.net
+
+
+"""
+from flask import Flask
+from flask import request, redirect
+from ldap3 import Connection, Server, HASHED_SALTED_SHA256
+from json import load, dumps
+from sys import argv
+
+CONFIG=load(open(argv[1]))
+
+app = Flask(__name__)
+
+build_dn = lambda uid: f"uid={uid},ou=people,dc=home"
+
+
+
+print(__doc__)
+
+
+CSS="""
+<style>
+.atkinson-hyperlegible-regular {
+  font-family: "Atkinson Hyperlegible", system-ui;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.atkinson-hyperlegible-bold {
+  font-family: "Atkinson Hyperlegible", system-ui;
+  font-weight: 700;
+  font-style: normal;
+}
+
+.atkinson-hyperlegible-regular-italic {
+  font-family: "Atkinson Hyperlegible", system-ui;
+  font-weight: 400;
+  font-style: italic;
+}
+
+.atkinson-hyperlegible-bold-italic {
+  font-family: "Atkinson Hyperlegible", system-ui;
+  font-weight: 700;
+  font-style: italic;
+}
+
+html {
+    background-color:white;
+    font-family: 'Atkinson Hyperlegible', monospace;
+}
+body {
+    font-family: 'Atkinson Hyperlegible', monospace;
+}
+label {
+
+  display: inline-block;
+  margin:auto;
+}
+.container {
+margin:auto;
+width:20em;
+}
+fieldset { 
+border: 3px solid #666;
+border-radius: 1em;
+background: #eef;
+margin:auto;
+width:16em;
+}
+
+input:disabled {
+    border: 3px solid grey;
+}
+
+input {
+    border-radius:5px;
+    font-family: 'Atkinson Hyperlegible', monospace;
+    border: 2px solid black;
+    width:22em;
+    height:2.5em;
+}
+input[type=submit] {
+    height:2.5em;
+    background:#ebebeb;
+
+}
+</style>
+"""
+
+
+
+
+HTML_TEMPLATE = """
+<html>
+<head>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css?family=Andika" rel="stylesheet">
+
+<script
+      src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
+      integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8="
+    crossorigin="anonymous"></script>
+    <script>
+    $(document).ready(function() {
+        $('input').on('keyup',function () {
+            if ($('input[name=pass]').val() != $('input[name=repeatpass]').val()) {
+                $('input[type=submit]').attr("disabled", true);
+            } else {
+                $('input[type=submit]').removeAttr("disabled")
+            }
+        });
+    })
+    </script>
+
+%s
+</head>
+<body>
+<div name=main>
+%s
+</div>
+</body>
+</html>
+"""
+@app.route("/change/", methods = [ "POST" ])
+def change():
+    user = CONFIG["user"]=request.form.get("user")
+    dn = build_dn(user)
+    pwd = request.form.get("pass")
+    sb = CONFIG["search_base"] = build_dn(request.form.get("user"))
+    s= Server(CONFIG["host"])
+    ldap = Connection(s, user = dn, password = pwd)
+    ldap.bind()
+    if ldap.result["result"]:
+        return redirect(f"/?flash={ldap.result}&user={user}")
+    return HTML_TEMPLATE % (CSS, f'''
+    <div class=container>
+    Welcome {ldap.user}''' + '''
+    <form action=/update/ method=post >
+    <fieldset>
+    <legend>Please fill in new password</legend>
+    <label for=pass>
+    password
+    </label>
+    <br/>
+    <input name=pass id=pass type=password />
+    <br/>
+    <label for=repeatpass>
+    repeat password
+    </label>
+    <br/>
+    <input name=repeatpass id=repeatpass type=password />
+    <br/>
+    <br/>'''+ f'''
+    <input type=submit value="Please provide your password" disabled=true />
+    <input type=hidden name=dn value="{ldap.user}" />
+    <input type=hidden name=user value="{user}" />
+    <input type=hidden name=old_pass value="{pwd}" />
+    </fieldset>
+    <div class=flash>
+    {ldap.result.get("description")}
+    </div>
+
+    </form>
+    </div>
+    ''')
+
+@app.route("/update/", methods=['POST'])
+def update():
+    user = CONFIG["user"]=request.form.get("user")
+    dn=request.form.get("dn")
+    pwd = request.form.get("pass")
+    old_pass =request.form.get("old_pass")
+    sb = CONFIG["search_base"] = build_dn(request.form.get("user"))
+    s= Server(CONFIG["host"])
+    ldap = Connection(s, user = dn, password = old_pass)
+    ldap.bind()
+    print(old_pass)
+    print(pwd)
+    flash=ldap.extend.standard.modify_password(dn, new_password=pwd)
+    
+    return redirect(f"/?flash=Password changed {flash}&user={user}", )
+
+
+@app.route("/", methods=["GET"])
+def base():
+    return HTML_TEMPLATE % (CSS, f"""
+    <div class=container>
+    <form action=/change/ method=post >
+    <fieldset>
+    <legend>Please enter current password</legend>
+    <label for=user>
+    User
+    </label>
+    <br/>
+    <input name=user id=user type=text value={request.args.get("user") or ""} >
+    <br/>
+    <br/>
+    <label for=pass>
+    password
+    </label>
+    <br/>
+    <input name=pass id=pass type=password >
+    <br/>
+    <label for=repeatpass>
+    repeat password
+    </label>
+    <br/>
+    <input name=repeatpass type=password >
+    <br/>
+    <br/>
+    <input type=submit value="Change Password" disabled=true >
+    </fieldset>
+
+    </form>
+    <div class=flash>
+        {request.args.get("flash")}
+    </div>
+    </div>
+    """)
+
+app.secret_key=str(hash(id(app))).encode()
+app.run(host="0.0.0.0", debug=False, port=5001)
+
+
