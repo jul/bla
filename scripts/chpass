@@ -24,10 +24,11 @@ AUTHOR
 """
 from flask import Flask
 from flask_qrcode import QRcode
-from flask_qrcode import QRcode
 from flask import request, redirect
 from ldap3 import Connection, Server, HASHED_SALTED_SHA256
-from json import load, dumps
+from json import load, dumps, loads
+from urllib.parse import unquote_plus
+
 from sys import argv
 
 CONFIG=load(open(argv[1]))
@@ -131,17 +132,6 @@ HTML_TEMPLATE = """
       src="https://code.jquery.com/jquery-3.7.1.slim.min.js"
       integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8="
     crossorigin="anonymous"></script>
-    <script>
-    $(document).ready(function() {
-        $('input').on('keyup',function () {
-            if ($('input[name=pass]').val() != $('input[name=repeatpass]').val()) {
-                $('input[type=submit]').attr("disabled", true);
-            } else {
-                $('input[type=submit]').removeAttr("disabled")
-            }
-        });
-    })
-    </script>
 
 %s
 </head>
@@ -154,10 +144,10 @@ HTML_TEMPLATE = """
 """
 @app.route("/change/", methods = [ "POST" ])
 def change():
-    user = CONFIG["user"]=request.form.get("user")
+    user  =request.form.get("user")
     dn = build_dn(user)
     pwd = request.form.get("pass")
-    sb = CONFIG["search_base"] = build_dn(request.form.get("user"))
+    sb =  build_dn(request.form.get("user"))
     s= Server(CONFIG["host"])
     ldap = Connection(s, user = dn, password = pwd)
     ldap.bind()
@@ -166,9 +156,21 @@ def change():
     return HTML_TEMPLATE % (CSS, f'''
     <div class=container>
     Welcome {ldap.user}''' + '''
+
+    <script>
+    $(document).ready(function() {
+        $('input').on('keyup',function () {
+            if ($('input[name=pass]').val() != $('input[name=repeatpass]').val()) {
+                $('input[type=submit]').attr("disabled", true);
+            } else {
+                $('input[type=submit]').removeAttr("disabled")
+            }
+        });
+    })
+    </script>
     <form action=/update/ method=post >
     <fieldset>
-    <legend>Please fill in new password</legend>
+    <legend>Please provide your new password</legend>
     <label for=pass>
     password
     </label>
@@ -182,7 +184,7 @@ def change():
     <input name=repeatpass id=repeatpass type=password />
     <br/>
     <br/>'''+ f'''
-    <input type=submit value="Please provide your password" disabled=true />
+    <input type=submit value="Change password" disabled=true />
     <input type=hidden name=dn value="{ldap.user}" />
     <input type=hidden name=user value="{user}" />
     <input type=hidden name=old_pass value="{pwd}" />
@@ -197,7 +199,7 @@ def change():
 
 @app.route("/update/", methods=['POST'])
 def update():
-    user = CONFIG["user"]=request.form.get("user")
+    user =request.form.get("user")
     dn=request.form.get("dn")
     pwd = request.form.get("pass")
     old_pass =request.form.get("old_pass")
@@ -205,16 +207,27 @@ def update():
     s= Server(CONFIG["host"])
     ldap = Connection(s, user = dn, password = old_pass)
     ldap.bind()
-    print(old_pass)
-    print(pwd)
     flash=ldap.extend.standard.modify_password(dn, new_password=pwd)
-    
-    return redirect(f"/?flash=Password changed {flash}&user={user}", )
-
+    return redirect(f"/?flash={flash == 'True' and " " or flash }&user={user}", )
 
 @app.route("/", methods=["GET"])
 def base():
-    return HTML_TEMPLATE % (CSS, f"""
+    flash=request.args.get("flash")
+    return HTML_TEMPLATE % (CSS,
+    """
+    <script>
+        $(document).ready(function() {
+            $('input[name=pass]').on('keyup',function () {
+                if ($('input[name=pass]').val() != "") {
+                    $('input[type=submit]').removeAttr("disabled")
+                } else {
+                    $('input[type=submit]').attr("disabled", true);
+                }
+            });
+        });
+    </script>
+
+    """ + f"""
     <div class=container>
     <form action=/change/ method=post >
     <fieldset>
@@ -232,23 +245,20 @@ def base():
     <br/>
     <input name=pass id=pass type=password >
     <br/>
-    <label for=repeatpass>
-    repeat password
-    </label>
     <br/>
-    <input name=repeatpass type=password >
-    <br/>
-    <br/>
-    <input type=submit value="Change Password" disabled=true >
+    <input type=submit value="Authenticate" disabled=true  >
+
+
     </fieldset>
 
     </form>
     <div class=centered>
     <img src="{img.qrcode(request.base_url)}" />
     </div>
-    <div class=flash>
-        {request.args.get("flash") or ""}
-    </div>
+    <pre class=flash>
+{flash and dumps(eval(unquote_plus(flash)), indent=4) or ""}
+
+    </pre>
     </div>
     """)
 
