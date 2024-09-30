@@ -23,6 +23,8 @@ AUTHOR
 
 """
 from flask import Flask
+from flask_qrcode import QRcode
+from flask_qrcode import QRcode
 from flask import request, redirect
 from ldap3 import Connection, Server, HASHED_SALTED_SHA256
 from json import load, dumps
@@ -31,6 +33,7 @@ from sys import argv
 CONFIG=load(open(argv[1]))
 
 app = Flask(__name__)
+img = QRcode(app)
 
 build_dn = lambda uid: f"uid={uid},ou=people,dc=home"
 
@@ -71,6 +74,11 @@ html {
 }
 body {
     font-family: 'Atkinson Hyperlegible', monospace;
+}
+
+.centered {
+margin:auto;
+text-align:center;
 }
 label {
 
@@ -235,8 +243,11 @@ def base():
     </fieldset>
 
     </form>
+    <div class=centered>
+    <img src="{img.qrcode(request.base_url)}" />
+    </div>
     <div class=flash>
-        {request.args.get("flash")}
+        {request.args.get("flash") or ""}
     </div>
     </div>
     """)
