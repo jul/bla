@@ -78,36 +78,41 @@ body {
 }
 
 .centered {
-margin:auto;
-text-align:center;
+    margin:auto;
+    text-align:center;
 }
 label {
-
-  display: inline-block;
-  margin:auto;
+    margin-left:0px;
+    display: inline-block;
+    margin:auto;
 }
 .container {
-margin:auto;
-width:20em;
+    text-align:center;
+    margin:auto;
+    width:22em;
+}
+.flash {
+    text-align:left;
 }
 fieldset { 
-border: 3px solid #666;
-border-radius: 1em;
-background: #eef;
-margin:auto;
-width:16em;
+    border: 3px solid #666;
+    border-radius: 1em;
+    background: #eef;
+    margin:auto;
+    text-align:left;
+    width:10em,
 }
 
 input:disabled {
     border: 3px solid grey;
 }
-
 input {
     border-radius:5px;
     font-family: 'Atkinson Hyperlegible', monospace;
     border: 2px solid black;
-    width:22em;
+    width:100%;
     height:2.5em;
+    margin:auto;
 }
 input[type=submit] {
     height:2.5em;
@@ -177,11 +182,13 @@ def change():
     <br/>
     <input name=pass id=pass type=password />
     <br/>
+    <br/>
     <label for=repeatpass>
     repeat password
     </label>
     <br/>
     <input name=repeatpass id=repeatpass type=password />
+    <br/>
     <br/>
     <br/>'''+ f'''
     <input type=submit value="Change password" disabled=true />
@@ -192,6 +199,7 @@ def change():
     <div class=flash>
     {ldap.result.get("description")}
     </div>
+
 
     </form>
     </div>
@@ -208,7 +216,7 @@ def update():
     ldap = Connection(s, user = dn, password = old_pass)
     ldap.bind()
     flash=ldap.extend.standard.modify_password(dn, new_password=pwd)
-    return redirect(f"/?flash={flash == 'True' and " " or flash }&user={user}", )
+    return redirect(f"/?flash={flash}&user={user}")
 
 @app.route("/", methods=["GET"])
 def base():
@@ -246,6 +254,7 @@ def base():
     <input name=pass id=pass type=password >
     <br/>
     <br/>
+    <br/>
     <input type=submit value="Authenticate" disabled=true  >
 
 
@@ -263,6 +272,6 @@ def base():
     """)
 
 app.secret_key=str(hash(id(app))).encode()
-app.run(host="0.0.0.0", debug=False, port=5001)
+app.run(host="0.0.0.0", debug=True, port=5001)
 
 
